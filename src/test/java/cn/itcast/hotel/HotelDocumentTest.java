@@ -7,6 +7,8 @@ import cn.itcast.hotel.service.IHotelService;
 import com.alibaba.fastjson.JSON;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
@@ -43,7 +45,7 @@ class HotelDocumentTest {
     void testInit() {
         System.out.println(client);
     }
-
+    //添加使用index
     @Test
     void testAddDocument() throws IOException {
         //根据id查询酒店数据,数据库是long类型
@@ -57,6 +59,23 @@ class HotelDocumentTest {
         indexRequest.source(JSON.toJSONString(hotelDoc),XContentType.JSON);
         //3.发送请求
         client.index(indexRequest,RequestOptions.DEFAULT);
+    }
+
+    //查询使用get
+    @Test
+    void testGetDocumentById() throws IOException {
+        //1.准备getRequest对象
+        GetRequest getRequest = new GetRequest("hotel").id("309208");
+        //2.发送请求，得到响应
+        GetResponse response = client.get(getRequest, RequestOptions.DEFAULT);
+        //3.解析响应结果
+        String sourceAsString = response.getSourceAsString();//转为json的字符串
+        System.out.println(sourceAsString);
+        //4.进行反序列化
+        HotelDoc hotelDoc = JSON.parseObject(sourceAsString, HotelDoc.class);
+        System.out.println(hotelDoc);
+
+
     }
 
     @AfterEach
