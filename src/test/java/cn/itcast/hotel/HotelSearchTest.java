@@ -35,6 +35,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -65,14 +66,23 @@ class HotelSearchTest {
         //6.查询的结果数组
         SearchHit[] hits = searchHits.getHits();
         for (SearchHit hit : hits) {
-            //7.得到source，数据
-            String json = hit.getSourceAsString();//json字符串，可以转为对象
-            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
-            System.out.println(highlightFields);
-            System.out.println("=================");
-            //反序列化
+            //7. 获取文档source
+            String json = hit.getSourceAsString();
+            //8. 反序列化
             HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
-            System.out.println(hotelDoc);
+            //9. 获取高亮结果
+            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+            if (!CollectionUtils.isEmpty(highlightFields)) {//健壮性判断
+                // 根据字段名获取高亮结果
+                HighlightField highlightField = highlightFields.get("name");//根据字段取
+                if (highlightField != null) {
+                    // 获取高亮值
+                    String name = highlightField.getFragments()[0].string();
+                    // 覆盖非高亮结果---展示的就为高亮
+                    hotelDoc.setName(name);
+                }
+                System.out.println(hotelDoc);
+            }
         }
     }
 
