@@ -7,6 +7,7 @@ import cn.itcast.hotel.service.IHotelService;
 import com.alibaba.fastjson.JSON;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -26,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.IOException;
+import java.util.List;
 
 @SpringBootTest
 class HotelDocumentTest {
@@ -102,6 +104,26 @@ class HotelDocumentTest {
         DeleteRequest request = new DeleteRequest("hotel", "61083");
         // 2.发送请求
         client.delete(request, RequestOptions.DEFAULT);
+    }
+    //查询出数据库数据，并批量导入文档
+    @Test
+    void testBulkRequest() throws IOException {
+        // 批量查询酒店数据
+        List<Hotel> hotels = hotelService.list();
+
+        // 1.创建Request
+        BulkRequest request = new BulkRequest();
+        // 2.准备参数，添加多个新增的Request
+        for (Hotel hotel : hotels) {
+            // 2.1.转换为文档类型HotelDoc
+            HotelDoc hotelDoc = new HotelDoc(hotel);
+            // 2.2.创建新增文档的Request对象
+            request.add(new IndexRequest("hotel")
+                    .id(hotelDoc.getId().toString())
+                    .source(JSON.toJSONString(hotelDoc), XContentType.JSON));
+        }
+        // 3.发送请求
+        client.bulk(request, RequestOptions.DEFAULT);
     }
     @AfterEach
     void tearDown() throws IOException {
