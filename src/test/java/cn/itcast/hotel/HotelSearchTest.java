@@ -101,6 +101,30 @@ class HotelSearchTest {
         handleResponse(response);
     }
 
+    //词条查询-精确查询term
+    @Test
+    void testTerm() throws IOException {
+        //1.准备request,准备索引库名称
+        SearchRequest request = new SearchRequest("hotel");
+        //2.准备DSL,精确查询term,termQuery("字段","精确匹配的值，不分词")，如果用户输入的内容过多，反而搜索不到数据
+        request.source().query(QueryBuilders.termQuery("name","希尔顿"));
+        //3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        handleResponse(response);
+    }
+
+    //词条查询-范围查询Range
+    @Test
+    void testRange() throws IOException {
+        //1.准备request,准备索引库名称
+        SearchRequest request = new SearchRequest("hotel");
+        //2.准备DSL,精确查询Range,rangeQuery("字段").gte(大于).lte(小于等于)，一般应用在对数值类型做范围过滤的时候。比如做价格范围过滤
+        request.source().query(QueryBuilders.rangeQuery("price").gte(1000).lte(2000));
+        //3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        handleResponse(response);
+    }
+
 
 
     @AfterEach
