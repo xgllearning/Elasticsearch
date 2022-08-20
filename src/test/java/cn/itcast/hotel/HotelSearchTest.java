@@ -23,6 +23,7 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.sort.SortOrder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -139,6 +140,24 @@ class HotelSearchTest {
         handleResponse(response);
     }
 
+    //排序、分页
+    @Test
+    void testPageAndSort() throws IOException {
+        Integer page = 2;
+        Integer pageSize = 6;
+        //1.准备request,准备索引库名称
+        SearchRequest request = new SearchRequest("hotel");
+        //2.准备DSL,排序分页
+        //2.1查询
+        request.source().query(QueryBuilders.matchQuery("name","希尔顿"));
+        //2.2排序
+        request.source().sort("price", SortOrder.DESC);
+        //2.3分页
+        request.source().from((page-1)*pageSize).size(pageSize);
+        //3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        handleResponse(response);
+    }
     @AfterEach
     void tearDown() throws IOException {
         //使用后销毁对象
