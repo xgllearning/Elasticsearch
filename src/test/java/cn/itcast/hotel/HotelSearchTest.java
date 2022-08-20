@@ -5,6 +5,7 @@ import cn.itcast.hotel.pojo.HotelDoc;
 import cn.itcast.hotel.service.IHotelService;
 import com.alibaba.fastjson.JSON;
 import org.apache.http.HttpHost;
+import org.apache.lucene.spatial3d.geom.GeoDistance;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
@@ -18,11 +19,14 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.GeoDistanceQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.sort.GeoDistanceSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -128,13 +132,26 @@ class HotelSearchTest {
     }
 
     //符合查询-bool,布尔查询是用must、must_not、filter等方式组合其它查询
+    //"filter": [
+    //        {
+    //          "geo_distance": {
+    //            "distance": "10km",
+    //            "location": {
+    //              "lat": 31.21,
+    //              "lon": 121.5
+    //            }
+    //          }
+    //        }
+    //      ]
     @Test
     void testBool() throws IOException {
         //1.准备request,准备索引库名称
         SearchRequest request = new SearchRequest("hotel");
         //2.准备DSL,搜索姓名包含如家，价格不高于400，在坐标31.21，121.5周围10km范围内的酒店
         request.source().query(QueryBuilders.boolQuery().must(QueryBuilders.termQuery("name","如家"))
-                .mustNot(QueryBuilders.rangeQuery("price").gt(400)));//!filter(QueryBuilders.rangeQuery("price").gt(400));
+                .mustNot(QueryBuilders.rangeQuery("price").gt(400)).filter(QueryBuilders.geoDistanceQuery("location")
+                .point(new GeoPoint(31.21,121.5))
+                .distance("10", DistanceUnit.KILOMETERS)));//!filter(QueryBuilders.rangeQuery("price").gt(400));
         //3.发送请求
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
         handleResponse(response);
