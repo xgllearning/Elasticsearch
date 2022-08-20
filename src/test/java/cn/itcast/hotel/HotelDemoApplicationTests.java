@@ -1,8 +1,12 @@
 package cn.itcast.hotel;
 
+import cn.itcast.hotel.constants.HotelConstants;
 import org.apache.http.HttpHost;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,8 +30,21 @@ class HotelDemoApplicationTests {
 
 
     @Test
-    void name() {
+    void testInit() {
         System.out.println(client);
+    }
+
+    /**
+     * 创建索引库
+     */
+    @Test
+    void createHotelIndex() throws IOException {
+        //1.创建Request对象
+        CreateIndexRequest request = new CreateIndexRequest("hotel");
+        //2.准备请求的参数：DSL语句
+        CreateIndexRequest source = request.source(HotelConstants.MAPPING_TEMPLATE, XContentType.JSON);
+        //3.发送请求
+        client.indices().create(request, RequestOptions.DEFAULT);
     }
 
     @AfterEach
