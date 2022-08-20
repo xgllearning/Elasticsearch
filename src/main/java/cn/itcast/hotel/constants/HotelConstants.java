@@ -2,8 +2,7 @@ package cn.itcast.hotel.constants;
 
 public class HotelConstants {
     //定义静态常量
-    public static final String MAPPING_TEMPLATE = "PUT /hotel\n" +
-            "{\n" +
+    public static final String MAPPING_TEMPLATE = "{\n" +
             "  \"mappings\": {\n" +
             "    \"properties\": {\n" +
             "      \"id\":{\n" +

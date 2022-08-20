@@ -2,10 +2,12 @@ package cn.itcast.hotel;
 
 import cn.itcast.hotel.constants.HotelConstants;
 import org.apache.http.HttpHost;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +48,33 @@ class HotelDemoApplicationTests {
         //3.发送请求
         client.indices().create(request, RequestOptions.DEFAULT);
     }
+
+    /**
+     * 删除索引库
+     * @throws IOException
+     */
+    @Test
+    void testDeleteHotelIndex() throws IOException {
+        //1.要删除的索引Request对象
+        DeleteIndexRequest request = new DeleteIndexRequest("hotel");
+        //2.发送请求
+        client.indices().delete(request, RequestOptions.DEFAULT);
+    }
+    /**
+     * 查看索引库是否存在
+     * @throws IOException
+     */
+    @Test
+    void testExistsHotelIndex() throws IOException {
+        //1.要查询的索引库
+        GetIndexRequest request = new GetIndexRequest("hotel");
+        //2.发起请求
+        boolean exists = client.indices().exists(request, RequestOptions.DEFAULT);
+        System.out.println(exists);
+    }
+
+
+
 
     @AfterEach
     void tearDown() throws IOException {
