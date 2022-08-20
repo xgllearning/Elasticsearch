@@ -7,6 +7,7 @@ import cn.itcast.hotel.service.IHotelService;
 import com.alibaba.fastjson.JSON;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -94,7 +95,14 @@ class HotelDocumentTest {
         System.out.println(update.getGetResult());
 
     }
-
+    //删除文档
+    @Test
+    void testDeleteDocument() throws IOException {
+        // 1.准备Request
+        DeleteRequest request = new DeleteRequest("hotel", "61083");
+        // 2.发送请求
+        client.delete(request, RequestOptions.DEFAULT);
+    }
     @AfterEach
     void tearDown() throws IOException {
         //使用后销毁对象
