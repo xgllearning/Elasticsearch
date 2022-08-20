@@ -26,6 +26,8 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.GeoDistanceSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.junit.jupiter.api.AfterEach;
@@ -36,6 +38,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @SpringBootTest
 class HotelSearchTest {
@@ -64,6 +67,9 @@ class HotelSearchTest {
         for (SearchHit hit : hits) {
             //7.得到source，数据
             String json = hit.getSourceAsString();//json字符串，可以转为对象
+            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+            System.out.println(highlightFields);
+            System.out.println("=================");
             //反序列化
             HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
             System.out.println(hotelDoc);
@@ -175,6 +181,37 @@ class HotelSearchTest {
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
         handleResponse(response);
     }
+
+    //#高亮查询
+    //GET /hotel/_search
+    //{
+    //  "query": {
+    //    "term": {
+    //      "name": {
+    //        "value": "希尔顿"
+    //      }
+    //    }
+    //  },
+    //  "highlight": {
+    //    "fields": {
+    //      "name": {
+    //      }
+    //    }
+    //  }
+    //}
+    @Test
+    void testHighLighter() throws IOException {
+        //1.准备request,准备索引库名称
+        SearchRequest request = new SearchRequest("hotel");
+        //2.准备DSL,精确查询term,termQuery("字段","精确匹配的值，不分词")，如果用户输入的内容过多，反而搜索不到数据
+        //request.source().query(QueryBuilders.termQuery("name","希尔顿"));
+        request.source().query(QueryBuilders.matchQuery("all","希尔顿"));
+        request.source().highlighter(new HighlightBuilder().field("name")
+                .requireFieldMatch(false));//是否需要与查询字段匹配
+        //3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        handleResponse(response);
+        }
     @AfterEach
     void tearDown() throws IOException {
         //使用后销毁对象
