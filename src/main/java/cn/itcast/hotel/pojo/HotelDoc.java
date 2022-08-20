@@ -2,7 +2,7 @@ package cn.itcast.hotel.pojo;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+//保证数据库数据和索引库数据之间的类型、字段一致
 @Data
 @NoArgsConstructor
 public class HotelDoc {

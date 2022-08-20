@@ -1,0 +1,67 @@
+package cn.itcast.hotel;
+
+import cn.itcast.hotel.constants.HotelConstants;
+import cn.itcast.hotel.pojo.Hotel;
+import cn.itcast.hotel.pojo.HotelDoc;
+import cn.itcast.hotel.service.IHotelService;
+import com.alibaba.fastjson.JSON;
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.io.IOException;
+
+@SpringBootTest
+class HotelDocumentTest {
+
+    @Autowired
+    private IHotelService hotelService;
+
+    private RestHighLevelClient client;
+
+    @BeforeEach
+    void setUp() {
+        //定义成员变量，使用前创建对象，就可以不用每次测试都需要初始化client对象
+        client=new RestHighLevelClient(RestClient.builder(
+                HttpHost.create("http://192.168.177.128:9200")//如果是集群的话，可以逗号分割指定多个地址
+        ));
+    }
+
+
+    @Test
+    void testInit() {
+        System.out.println(client);
+    }
+
+    @Test
+    void testAddDocument() throws IOException {
+        //根据id查询酒店数据,数据库是long类型
+        Hotel hotel = hotelService.getById("309208L");
+        //将查询出来的数据转为hotelDoc
+        HotelDoc hotelDoc = new HotelDoc(hotel);
+        System.out.println(hotelDoc);
+        //1.准备request对象,指定索引库名和id,索引库的字段都是String
+        IndexRequest indexRequest = new IndexRequest("hotel").id(hotelDoc.getId().toString());
+        //2.准备json文档,source,数据需要从数据库中查询
+        indexRequest.source(JSON.toJSONString(hotelDoc),XContentType.JSON);
+        //3.发送请求
+        client.index(indexRequest,RequestOptions.DEFAULT);
+    }
+
+    @AfterEach
+    void tearDown() throws IOException {
+        //使用后销毁对象
+        client.close();
+    }
+}
