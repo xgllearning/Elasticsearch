@@ -17,6 +17,7 @@ import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -125,7 +126,18 @@ class HotelSearchTest {
         handleResponse(response);
     }
 
-
+    //符合查询-bool,布尔查询是用must、must_not、filter等方式组合其它查询
+    @Test
+    void testBool() throws IOException {
+        //1.准备request,准备索引库名称
+        SearchRequest request = new SearchRequest("hotel");
+        //2.准备DSL,搜索姓名包含如家，价格不高于400，在坐标31.21，121.5周围10km范围内的酒店
+        request.source().query(QueryBuilders.boolQuery().must(QueryBuilders.termQuery("name","如家"))
+                .mustNot(QueryBuilders.rangeQuery("price").gt(400)));//!filter(QueryBuilders.rangeQuery("price").gt(400));
+        //3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        handleResponse(response);
+    }
 
     @AfterEach
     void tearDown() throws IOException {
