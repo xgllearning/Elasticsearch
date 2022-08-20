@@ -46,15 +46,8 @@ class HotelSearchTest {
                 HttpHost.create("http://192.168.177.128:9200")//如果是集群的话，可以逗号分割指定多个地址
         ));
     }
-
-    @Test
-    void testMatchAll() throws IOException {
-        //1.准备request,准备索引库名称
-        SearchRequest request = new SearchRequest("hotel");
-        //2.准备DSL
-        request.source().query(QueryBuilders.matchAllQuery());
-        //3.发送请求
-        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+    //对解析结果进行一个抽取,ctrl+alt+m
+    private void handleResponse(SearchResponse response) {
         //4.解析响应结果
         SearchHits searchHits = response.getHits();
         //5.获取总条数
@@ -69,8 +62,46 @@ class HotelSearchTest {
             HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
             System.out.println(hotelDoc);
         }
+    }
+
+    @Test
+    void testMatchAll() throws IOException {
+        //1.准备request,准备索引库名称
+        SearchRequest request = new SearchRequest("hotel");
+        //2.准备DSL
+        request.source().query(QueryBuilders.matchAllQuery());
+        //3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        //4.解析响应结果
+        handleResponse(response);
 
     }
+    //全文检索的match搜索--单字段搜索，差别是查询条件，也就是query的部分
+    @Test
+    void testMatch() throws IOException {
+        //1.准备request,准备索引库名称
+        SearchRequest request = new SearchRequest("hotel");
+        //2.准备DSL，QueryBuilders.matchQuery(字段，内容)
+        request.source().query(QueryBuilders.matchQuery("all","希尔顿"));
+        //3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        //4.解析响应结果
+        handleResponse(response);
+    }
+
+    //全文检索的multi_match搜索--多字段搜索，差别是查询条件，也就是query的部分
+    @Test
+    void testMultiMatch() throws IOException {
+        //1.准备request,准备索引库名称
+        SearchRequest request = new SearchRequest("hotel");
+        //2.准备DSL,QueryBuilders.multiMatchQuery("要查询的内容","字段1","字段2","字段3")
+        request.source().query(QueryBuilders.multiMatchQuery("希尔顿","name","address","business"));
+        //3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        handleResponse(response);
+    }
+
+
 
     @AfterEach
     void tearDown() throws IOException {
