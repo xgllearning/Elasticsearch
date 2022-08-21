@@ -19,6 +19,8 @@ import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
@@ -60,7 +62,7 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
             //获取排序距离
             Object[] sortValues = hit.getSortValues();
-            if (!ArrayUtil.isEmpty(sortValues)){
+            if (!ArrayUtil.isEmpty(sortValues)) {
                 Object value = sortValues[0];
                 hotelDoc.setDistance(value);
             }
@@ -79,18 +81,19 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             }
             hotels.add(hotelDoc);//将解析到的hotelDoc对象封装进集合
         }
-        return new PageResult(total,hotels);//返回pageResult
+        return new PageResult(total, hotels);//返回pageResult
     }
 
     /**
      * 搜索酒店数据，根据关键字搜索并分页
      * 利用match查询，根据参数中的key搜索all字段，查询酒店信息并返回
      * 利用参数中的page、size实现分页
+     *
      * @param params
      * @return
      */
     @Override
-    public PageResult search(RequestParams params)  {
+    public PageResult search(RequestParams params) {
 
         try {
             //1.准备request,指定索引
@@ -98,15 +101,18 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             //2.准备dsl查询条件
             //先构建BoolQuery,最后封装好查询条件,再request.source().query()
             buildBasicQuery(params, request);
+
+            //TODO：广告置顶，加权模式，使用function score,此时bool只能为原始查询
+
             //2.2分页,参与运算要进行拆箱
             int page = params.getPage();
             int paramsSize = params.getSize();
-            request.source().from((page-1)*paramsSize).size(paramsSize);
+            request.source().from((page - 1) * paramsSize).size(paramsSize);
 
             //2.3排序,按照地理坐标排序
             String location = params.getLocation();
             if (!StringUtils.isEmpty(location)) {
-                request.source().sort(SortBuilders.geoDistanceSort("location",new GeoPoint(location))
+                request.source().sort(SortBuilders.geoDistanceSort("location", new GeoPoint(location))
                         .order(SortOrder.ASC).unit(DistanceUnit.KILOMETERS));
             }
 
@@ -120,36 +126,53 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
     }
 
     private void buildBasicQuery(RequestParams params, SearchRequest request) {
+
+
         //注意事项：多个条件之间是AND关系，组合多条件用BooleanQuery,参数存在才需要过滤，做好非空判断
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
         //全文检索作为BoolQuery中must部分,关键字搜索
         //2.1query，利用match查询，根据参数中的key搜索all字段，查询酒店信息并返回
         String key = params.getKey();//获取参数，并做健壮性判断
-        if(StringUtils.isEmpty(key)){
+        if (StringUtils.isEmpty(key)) {
             boolQuery.must(QueryBuilders.matchAllQuery());//没有查询条件match_all
-        }else {
-            boolQuery.must(QueryBuilders.matchQuery("all",key));
+        } else {
+            boolQuery.must(QueryBuilders.matchQuery("all", key));
         }
         //条件过滤,city精确匹配,brand精确匹配,starName精确匹配.price范围过滤
         String city = params.getCity();
-        if (!StringUtils.isEmpty(city)){//此时可以进行term查询,属于过滤查询,不参与算法
-            boolQuery.filter(QueryBuilders.termQuery("city",city));
+        if (!StringUtils.isEmpty(city)) {//此时可以进行term查询,属于过滤查询,不参与算法
+            boolQuery.filter(QueryBuilders.termQuery("city", city));
         }
         String brand = params.getBrand();
-        if (!StringUtils.isEmpty(brand)){//此时可以进行term查询,属于过滤查询,不参与算法
-            boolQuery.filter(QueryBuilders.termQuery("brand",brand));
+        if (!StringUtils.isEmpty(brand)) {//此时可以进行term查询,属于过滤查询,不参与算法
+            boolQuery.filter(QueryBuilders.termQuery("brand", brand));
         }
         String starName = params.getStarName();
-        if (!StringUtils.isEmpty(starName)){//此时可以进行term查询,属于过滤查询,不参与算法
-            boolQuery.filter(QueryBuilders.termQuery("starName",starName));
+        if (!StringUtils.isEmpty(starName)) {//此时可以进行term查询,属于过滤查询,不参与算法
+            boolQuery.filter(QueryBuilders.termQuery("starName", starName));
         }
         //价格使用范围查询
         Integer minPrice = params.getMinPrice();
         Integer maxPrice = params.getMaxPrice();
-        if (minPrice!=null&&maxPrice!=null){
+        if (minPrice != null && maxPrice != null) {
             boolQuery.filter(QueryBuilders.rangeQuery("price").gte(minPrice).lte(maxPrice));
         }
-        //查询，传入查询条件
-        request.source().query(boolQuery);
+        //TODO：广告置顶，加权模式，使用function score,此时bool只能为原始查询
+        //算分控制,参数一原始查询，参数二算分查询
+        FunctionScoreQueryBuilder functionScoreQuery =
+                QueryBuilders.functionScoreQuery(
+                        //原始查询，相关性算法的查询
+                        boolQuery,
+                        //算分查询，function score数组层
+                        new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{
+                                //其中一个functions 元素
+                                new FunctionScoreQueryBuilder.FilterFunctionBuilder(
+                                        //参数一过滤条件，参数二，算分函数
+                                        QueryBuilders.termQuery("isAD", true),
+                                        ScoreFunctionBuilders.weightFactorFunction(5)
+                                )
+                        });
+        //查询，传入查询条件functionScoreQuery
+        request.source().query(functionScoreQuery);
     }
 }
