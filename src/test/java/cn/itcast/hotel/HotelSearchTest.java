@@ -26,6 +26,10 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.GeoDistanceSortBuilder;
@@ -222,6 +226,42 @@ class HotelSearchTest {
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
         handleResponse(response);
         }
+
+    //聚合查询三要素，名称terms(name)、类型terms、字段field
+    @Test
+    void testAggregation() {
+        try {
+            //1.准备Request
+            SearchRequest request = new SearchRequest("hotel");
+            //2.准备DSL
+            //2.1设置size,不显示文档数据
+            request.source().size(0);
+            //2.2聚合查询,term品牌聚合,term(聚合的名称),指定字段field
+            request.source().aggregation(AggregationBuilders.terms("brandCount").field("brand").size(20));
+            //3.发出请求
+            SearchResponse response = client.search(request,RequestOptions.DEFAULT);
+            //4.解析结果
+            Aggregations aggregations = response.getAggregations();
+            //4.1根据聚合名称获取聚合结果,返回值类型需要按照聚合类型接收
+            Terms brandCount= aggregations.get("brandCount");
+            //4.2获取buckets
+            List<? extends Terms.Bucket> buckets = brandCount.getBuckets();
+            //遍历
+            for (Terms.Bucket bucket : buckets) {
+                //一个bucket就是一个对象
+                //获取Key,即品牌信息
+                String brandName = bucket.getKeyAsString();
+                System.out.println(brandName);
+            }
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
     @AfterEach
     void tearDown() throws IOException {
         //使用后销毁对象
