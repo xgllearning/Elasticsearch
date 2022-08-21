@@ -69,6 +69,11 @@
             <artifactId>hutool-all</artifactId>
             <version>5.8.5</version>
         </dependency>
+        <!--amqp-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
