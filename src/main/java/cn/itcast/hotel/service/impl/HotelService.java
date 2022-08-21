@@ -13,6 +13,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
@@ -82,13 +83,8 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             //1.准备request,指定索引
             SearchRequest request = new SearchRequest("hotel");
             //2.准备dsl查询条件
-            //2.1query，利用match查询，根据参数中的key搜索all字段，查询酒店信息并返回
-            String key = params.getKey();//获取参数，并做健壮性判断
-            if(StringUtils.isEmpty(key)){
-                request.source().query(QueryBuilders.matchAllQuery());//没有查询条件match_all
-            }else {
-                request.source().query(QueryBuilders.matchQuery("all",key));
-            }
+            //先构建BoolQuery,最后封装好查询条件,再request.source().query()
+            buildBasicQuery(params, request);
             //2.2分页,参与运算要进行拆箱
             int page = params.getPage();
             int paramsSize = params.getSize();
@@ -100,5 +96,39 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void buildBasicQuery(RequestParams params, SearchRequest request) {
+        //注意事项：多个条件之间是AND关系，组合多条件用BooleanQuery,参数存在才需要过滤，做好非空判断
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        //全文检索作为BoolQuery中must部分,关键字搜索
+        //2.1query，利用match查询，根据参数中的key搜索all字段，查询酒店信息并返回
+        String key = params.getKey();//获取参数，并做健壮性判断
+        if(StringUtils.isEmpty(key)){
+            boolQuery.must(QueryBuilders.matchAllQuery());//没有查询条件match_all
+        }else {
+            boolQuery.must(QueryBuilders.matchQuery("all",key));
+        }
+        //条件过滤,city精确匹配,brand精确匹配,starName精确匹配.price范围过滤
+        String city = params.getCity();
+        if (!StringUtils.isEmpty(city)){//此时可以进行term查询,属于过滤查询,不参与算法
+            boolQuery.filter(QueryBuilders.termQuery("city",city));
+        }
+        String brand = params.getBrand();
+        if (!StringUtils.isEmpty(brand)){//此时可以进行term查询,属于过滤查询,不参与算法
+            boolQuery.filter(QueryBuilders.termQuery("brand",brand));
+        }
+        String starName = params.getStarName();
+        if (!StringUtils.isEmpty(starName)){//此时可以进行term查询,属于过滤查询,不参与算法
+            boolQuery.filter(QueryBuilders.termQuery("starName",starName));
+        }
+        //价格使用范围查询
+        Integer minPrice = params.getMinPrice();
+        Integer maxPrice = params.getMaxPrice();
+        if (minPrice!=null&&maxPrice!=null){
+            boolQuery.filter(QueryBuilders.rangeQuery("price").gte(minPrice).lte(maxPrice));
+        }
+        //查询，传入查询条件
+        request.source().query(boolQuery);
     }
 }
