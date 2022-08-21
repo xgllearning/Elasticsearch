@@ -1,6 +1,7 @@
 package cn.itcast.hotel;
 
 import cn.itcast.hotel.constants.HotelConstants;
+import cn.itcast.hotel.pojo.RequestParams;
 import cn.itcast.hotel.service.IHotelService;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -83,8 +84,8 @@ class HotelDemoApplicationTests {
 
     @Test
     void contextLoads() {
-        Map<String, List<String>> filters = iHotelService.filters();
-        System.out.println(filters);
+        //Map<String, List<String>> filters = iHotelService.filters();
+        //System.out.println(filters);
     }
 
     @AfterEach

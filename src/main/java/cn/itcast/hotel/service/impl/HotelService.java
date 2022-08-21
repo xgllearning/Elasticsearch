@@ -185,11 +185,13 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
      * @return
      */
     @Override
-    public Map<String, List<String>> filters() {
+    public Map<String, List<String>> filters(RequestParams params) {
         try {
             //1.准备SearchRequest
             SearchRequest request = new SearchRequest("hotel");
             //2.准备DSL，设置size为0
+            //TODO：补充查询信息
+            buildBasicQuery(params,request);
             request.source().size(0);
             buildAggregation(request);
             //3.发送请求
@@ -205,9 +207,9 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             //5.3解析星级
             List<String> starList = getAggByName(aggregations, "starCount");
             //在map中放入list
-            map.put("品牌", brandList);
-            map.put("城市", cityList);
-            map.put("星级", starList);
+            map.put("brand", brandList);
+            map.put("city", cityList);
+            map.put("starName", starList);
             return map;
         } catch (IOException e) {
             throw new RuntimeException(e);

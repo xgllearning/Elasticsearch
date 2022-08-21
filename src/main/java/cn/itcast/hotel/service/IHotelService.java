@@ -13,5 +13,5 @@ public interface IHotelService extends IService<Hotel> {
     // 搜索酒店数据
     PageResult search(RequestParams params);
     //多条件聚合查询，动态显示城市、星级、品牌
-    Map<String, List<String>> filters();
+    Map<String, List<String>> filters(RequestParams params);
 }
