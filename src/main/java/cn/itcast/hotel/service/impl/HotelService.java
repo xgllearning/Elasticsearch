@@ -23,6 +23,9 @@ import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
@@ -33,6 +36,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -84,46 +88,6 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
         return new PageResult(total, hotels);//返回pageResult
     }
 
-    /**
-     * 搜索酒店数据，根据关键字搜索并分页
-     * 利用match查询，根据参数中的key搜索all字段，查询酒店信息并返回
-     * 利用参数中的page、size实现分页
-     *
-     * @param params
-     * @return
-     */
-    @Override
-    public PageResult search(RequestParams params) {
-
-        try {
-            //1.准备request,指定索引
-            SearchRequest request = new SearchRequest("hotel");
-            //2.准备dsl查询条件
-            //先构建BoolQuery,最后封装好查询条件,再request.source().query()
-            buildBasicQuery(params, request);
-
-            //TODO：广告置顶，加权模式，使用function score,此时bool只能为原始查询
-
-            //2.2分页,参与运算要进行拆箱
-            int page = params.getPage();
-            int paramsSize = params.getSize();
-            request.source().from((page - 1) * paramsSize).size(paramsSize);
-
-            //2.3排序,按照地理坐标排序
-            String location = params.getLocation();
-            if (!StringUtils.isEmpty(location)) {
-                request.source().sort(SortBuilders.geoDistanceSort("location", new GeoPoint(location))
-                        .order(SortOrder.ASC).unit(DistanceUnit.KILOMETERS));
-            }
-
-            //3.发送请求，得到响应
-            SearchResponse response = client.search(request, RequestOptions.DEFAULT);
-            //4.解析响应,返回pageResult对象
-            return handleResponse(response);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private void buildBasicQuery(RequestParams params, SearchRequest request) {
 
@@ -175,4 +139,105 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
         //查询，传入查询条件functionScoreQuery
         request.source().query(functionScoreQuery);
     }
+    /**
+     * 搜索酒店数据，根据关键字搜索并分页
+     * 利用match查询，根据参数中的key搜索all字段，查询酒店信息并返回
+     * 利用参数中的page、size实现分页
+     *
+     * @param params
+     * @return
+     */
+    @Override
+    public PageResult search(RequestParams params) {
+
+        try {
+            //1.准备request,指定索引
+            SearchRequest request = new SearchRequest("hotel");
+            //2.准备dsl查询条件
+            //先构建BoolQuery,最后封装好查询条件,再request.source().query()
+            buildBasicQuery(params, request);
+
+            //TODO：广告置顶，加权模式，使用function score,此时bool只能为原始查询
+
+            //2.2分页,参与运算要进行拆箱
+            int page = params.getPage();
+            int paramsSize = params.getSize();
+            request.source().from((page - 1) * paramsSize).size(paramsSize);
+
+            //2.3排序,按照地理坐标排序
+            String location = params.getLocation();
+            if (!StringUtils.isEmpty(location)) {
+                request.source().sort(SortBuilders.geoDistanceSort("location", new GeoPoint(location))
+                        .order(SortOrder.ASC).unit(DistanceUnit.KILOMETERS));
+            }
+
+            //3.发送请求，得到响应
+            SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+            //4.解析响应,返回pageResult对象
+            return handleResponse(response);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 多条件聚合查询，动态显示城市、星级、品牌
+     * @return
+     */
+    @Override
+    public Map<String, List<String>> filters() {
+        try {
+            //1.准备SearchRequest
+            SearchRequest request = new SearchRequest("hotel");
+            //2.准备DSL，设置size为0
+            request.source().size(0);
+            buildAggregation(request);
+            //3.发送请求
+            SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+            //4.封装需要返回的对象
+            Map<String, List<String>> map = new HashMap<String, List<String>>();
+            //5.解析结果
+            Aggregations aggregations = response.getAggregations();
+            //5.1解析品牌
+            List<String> brandList = getAggByName(aggregations, "brandCount");
+            //5.2解析城市
+            List<String> cityList = getAggByName(aggregations, "cityCount");
+            //5.3解析星级
+            List<String> starList = getAggByName(aggregations, "starCount");
+            //在map中放入list
+            map.put("品牌", brandList);
+            map.put("城市", cityList);
+            map.put("星级", starList);
+            return map;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void buildAggregation(SearchRequest request) {
+        //聚合抽取,对品牌
+        request.source().aggregation(AggregationBuilders.terms("brandCount")
+                .field("brand").size(100));
+        //对城市
+        request.source().aggregation(AggregationBuilders.terms("cityCount")
+                .field("city").size(100));
+        //对星级
+        request.source().aggregation(AggregationBuilders.terms("starCount")
+                .field("starName").size(100));
+    }
+
+    private List<String> getAggByName(Aggregations aggregations,String aggName) {
+        //根据聚合名称获取聚合结果
+        Terms brandTerms= aggregations.get(aggName);
+        //获取buckets并遍历
+        List<? extends Terms.Bucket> buckets = brandTerms.getBuckets();
+        List<String> list = new ArrayList<>();
+        for (Terms.Bucket bucket : buckets) {
+            //获取key
+            String brand = bucket.getKeyAsString();
+            list.add(brand);
+        }
+        return list;
+    }
+
 }

@@ -1,6 +1,7 @@
 package cn.itcast.hotel;
 
 import cn.itcast.hotel.constants.HotelConstants;
+import cn.itcast.hotel.service.IHotelService;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.client.RequestOptions;
@@ -13,14 +14,20 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 @SpringBootTest
 class HotelDemoApplicationTests {
 
     private RestHighLevelClient client;
+
+    @Autowired
+    private IHotelService iHotelService;
 
     @BeforeEach
     void setUp() {
@@ -74,7 +81,11 @@ class HotelDemoApplicationTests {
     }
 
 
-
+    @Test
+    void contextLoads() {
+        Map<String, List<String>> filters = iHotelService.filters();
+        System.out.println(filters);
+    }
 
     @AfterEach
     void tearDown() throws IOException {
