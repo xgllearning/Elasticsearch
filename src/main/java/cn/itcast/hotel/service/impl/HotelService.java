@@ -1,5 +1,7 @@
 package cn.itcast.hotel.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.ArrayUtil;
 import cn.itcast.hotel.mapper.HotelMapper;
 import cn.itcast.hotel.pojo.Hotel;
 import cn.itcast.hotel.pojo.HotelDoc;
@@ -13,11 +15,16 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
+import org.elasticsearch.search.sort.SortBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
+import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -51,6 +58,12 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             String json = hit.getSourceAsString();
             //8. 反序列化
             HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
+            //获取排序距离
+            Object[] sortValues = hit.getSortValues();
+            if (!ArrayUtil.isEmpty(sortValues)){
+                Object value = sortValues[0];
+                hotelDoc.setDistance(value);
+            }
             //9. 获取高亮结果
             Map<String, HighlightField> highlightFields = hit.getHighlightFields();
             if (!CollectionUtils.isEmpty(highlightFields)) {//健壮性判断
@@ -89,6 +102,14 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             int page = params.getPage();
             int paramsSize = params.getSize();
             request.source().from((page-1)*paramsSize).size(paramsSize);
+
+            //2.3排序,按照地理坐标排序
+            String location = params.getLocation();
+            if (!StringUtils.isEmpty(location)) {
+                request.source().sort(SortBuilders.geoDistanceSort("location",new GeoPoint(location))
+                        .order(SortOrder.ASC).unit(DistanceUnit.KILOMETERS));
+            }
+
             //3.发送请求，得到响应
             SearchResponse response = client.search(request, RequestOptions.DEFAULT);
             //4.解析响应,返回pageResult对象

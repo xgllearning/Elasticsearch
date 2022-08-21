@@ -14,4 +14,6 @@ public class RequestParams {
     private String starName;
     private Integer minPrice;
     private Integer maxPrice;
+    // 我当前的地理坐标
+    private String location;
 }
