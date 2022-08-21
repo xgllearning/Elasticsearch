@@ -30,6 +30,10 @@ import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
+import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.search.suggest.SuggestBuilder;
+import org.elasticsearch.search.suggest.SuggestBuilders;
+import org.elasticsearch.search.suggest.completion.CompletionSuggestion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -213,6 +217,37 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             return map;
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+    //实现搜索框自动补全
+    @Override
+    public List<String> getSuggestions(String prefix) {
+        try {
+            //1.准备request,指定索引
+            SearchRequest request = new SearchRequest("hotel");
+            //2.准备DSL，addSuggestion(自动补全的名字,SuggestBuilders.completionSuggestion()),prefix前缀/关键字
+            request.source().suggest(new SuggestBuilder().addSuggestion(
+                    "suggestions", SuggestBuilders.completionSuggestion("suggestion")//自动补全所针对的字段
+                            .prefix(prefix).skipDuplicates(true).size(10)));
+            //3.发起请求
+            SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+            //4.解析结果
+            Suggest suggest = response.getSuggest();
+            //System.out.println(suggest);
+            //4.1根据名称获取补全结果
+            CompletionSuggestion suggestion=suggest.getSuggestion("suggestions");//自定义的自动补全名字
+            //4.2获取option并遍历
+            List<CompletionSuggestion.Entry.Option> options = suggestion.getOptions();
+            ArrayList<String> list = new ArrayList<>(options.size());
+            for (CompletionSuggestion.Entry.Option option : options) {
+                //获取一个option中的text,也就是补全的词条
+                String text = option.getText().string();
+                System.out.println(text);
+                list.add(text);
+            }
+            return list;
+        } catch (IOException e) {
+           throw new RuntimeException();
         }
     }
 
