@@ -11,12 +11,15 @@ import cn.itcast.hotel.service.IHotelService;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.unit.DistanceUnit;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
@@ -251,6 +254,8 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
         }
     }
 
+
+
     private void buildAggregation(SearchRequest request) {
         //聚合抽取,对品牌
         request.source().aggregation(AggregationBuilders.terms("brandCount")
@@ -277,4 +282,38 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
         return list;
     }
 
+    /**
+     * mq监听消息实现逻辑,es的新增也可以跟更新一致，更新就是先删除再新增
+     * @param id
+     */
+    @Override
+    public void insertById(Long id) {
+        try {
+            //根据id查询酒店对象
+            Hotel hotel = getById(id);
+            HotelDoc hotelDoc = new HotelDoc(hotel);
+            //1.准备request对象,指定索引库id,进行新增，再查询
+            IndexRequest indexRequest = new IndexRequest("hotel").id(hotelDoc.getId().toString());
+            //2.准备json文档
+            indexRequest.source(JSON.toJSONString(hotelDoc), XContentType.JSON);
+            //3.准备发送请求
+            client.index(indexRequest,RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    /**
+     * mq监听消息实现逻辑
+     * @param id
+     */
+    @Override
+    public void deleteById(Long id) {
+        try {
+            DeleteRequest request = new DeleteRequest("hotel", String.valueOf(id));
+            //发送请求
+            client.delete(request,RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

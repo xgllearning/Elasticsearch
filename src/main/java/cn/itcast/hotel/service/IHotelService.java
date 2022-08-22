@@ -1,3 +1,4 @@
+
 package cn.itcast.hotel.service;
 
 import cn.itcast.hotel.pojo.Hotel;
@@ -16,4 +17,8 @@ public interface IHotelService extends IService<Hotel> {
     Map<String, List<String>> filters(RequestParams params);
     //实现搜索框自动补全
     List<String> getSuggestions(String prefix);
+
+    void insertById(Long id);
+
+    void deleteById(Long id);
 }

@@ -7,10 +7,10 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-//基于bean的方式,如果基于注解方式会更简便
+//基于bean的方式,如果基于注解方式会更简便，direct模式
 @Configuration
 public class MqConfig {
-
+    @Bean
     public TopicExchange topicExchange(){
         return new TopicExchange(MqConstants.HOTEL_EXCHANGE, true, false);
     }
